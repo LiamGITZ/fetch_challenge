@@ -1,9 +1,10 @@
 from collections import defaultdict
 import types
+import bisect
 
 total_points = 0
 transactions = [] # sorted list
-used_transactions = [] # currently unused
+used_transactions = []
 payers = defaultdict(int)
 
 class Transaction:
@@ -14,6 +15,12 @@ class Transaction:
         self.timestamp = timestamp
 
     def __lt__(self, transaction2):
+        if transaction2.timestamp == self.timestamp:
+            if transaction2.payer == self.payer:
+                if transaction2.inital_points == self.inital_points:
+                    return False
+                return transaction2.inital_points > self.inital_points
+            return transaction2.payer > self.payer
         return transaction2.timestamp > self.timestamp
 
     def __eq__(self, transaction2):
@@ -21,18 +28,23 @@ class Transaction:
                and self.inital_points    == transaction2.inital_points \
                and self.timestamp        == transaction2.timestamp
 
+def binary_search(a, x):
+    'Locate the leftmost value exactly equal to x'
+    i = bisect.bisect_left(a, x)
+    if i != len(a) and a[i] == x:
+        return i
+    return -1
 
 
 from flask import Flask, request
 from datetime import datetime
-import bisect
 import json
 
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return 'Hello world'
+    return 'Hello World'
 
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
@@ -52,7 +64,8 @@ def add_transaction():
         return('invalid date', 400)
     else:
         given_transaction = Transaction(request_data['payer'], request_data['points'], request_data['timestamp'])
-        if given_transaction in transactions:
+        if binary_search(transactions, given_transaction) > -1 or \
+           binary_search(used_transactions, given_transaction) > -1:
             return('transaction already recorded', 400)
         bisect.insort_right(transactions, given_transaction)
         payers[given_transaction.payer] += given_transaction.inital_points
@@ -100,7 +113,8 @@ def spend_points():
             payment_dict[transaction.payer] -= transaction.valid_points
             transaction.valid_points = 0
 
-    used_transactions.extend(transactions[:indx_used])
+    for given_transaction in transactions[:indx_used]:
+        bisect.insort_right(used_transactions, given_transaction)
     transactions = transactions[indx_used:]
 
     # format output
