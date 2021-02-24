@@ -84,7 +84,6 @@ print(x.text)
 x = requests.get(url_balance)
 print(x.text)
 
-print('here-----------------------')
 y = { "payer": "UNILEVER", "points": -3000, "timestamp": 1 }
 x = requests.post(url_transactions, json = y)
 print(x.text)
